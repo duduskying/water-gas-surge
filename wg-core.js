@@ -48,7 +48,7 @@
   function serveHtml(html) { $done({ response: { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" }, body: html } }); }
   function serveText(t) { $done({ response: { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" }, body: t } }); }
   function setupPage(msg) {
-    var wt = loadJ(K_WTOKEN), rl = loadJ("wg_relay") || {};
+    var wt = loadJ(K_WTOKEN), rl = loadJ("wg_relay") || {}, hav = loadJ("wg_ha") || {};
     function st(ok) { return ok ? "已设置" : "未设置"; }
     return "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>自来水采集设置</title></head><body style='font-family:-apple-system;padding:20px'>" +
       "<h3>自来水采集设置</h3><p>以下三项只保存在本机 Surge 存储中,不会上传。已设置的项留空即保持不变。</p>" +
@@ -57,6 +57,8 @@
       "<p>1. ntAuth 令牌(" + st(!!(wt && wt.value)) + "):<br><textarea name='token' rows='4' style='width:100%;font-size:13px' placeholder='从 Reqable 复制的 ntAuth 值'></textarea></p>" +
       "<p>2. 中继地址(" + st(!!rl.url) + "):<br><input name='relay_url' style='width:100%;font-size:14px' placeholder='http://192.168.x.x:18765' value='" + (rl.url || "") + "'></p>" +
       "<p>3. 中继密钥(" + st(!!rl.secret) + "):<br><input name='relay_secret' style='width:100%;font-size:14px' placeholder='中继密钥'></p>" +
+      "<p>4. Home Assistant 地址(" + st(!!hav.url) + "):<br><input name='ha_url' style='width:100%;font-size:14px' placeholder='http://192.168.77.13' value='" + (hav.url || "") + "'></p>" +
+      "<p>5. HA 长效令牌(" + st(!!hav.token) + "):<br><textarea name='ha_token' rows='3' style='width:100%;font-size:13px' placeholder='HA 个人资料-安全-长期访问令牌'></textarea></p>" +
       "<button type='submit' style='font-size:17px;padding:8px 22px'>保存</button></form></body></html>";
   }
   function formField(body, name) {
@@ -68,7 +70,7 @@
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 v1.5 ===");
+    L.push("=== 水电气正式版核对报告 v1.6 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
@@ -97,6 +99,13 @@
       L.push("欠费接口 chargeAmount: " + w.arrears_amount);
       L.push("本月: 用水 " + w.monthVolume + "  arreFee: " + w.arreFee + "  lateFee: " + w.lateFee + "  preStoreFee: " + w.preStoreFee + "  paid: " + w.paid);
     } else L.push("暂无自来水数据。");
+    var ha3 = loadJ("wg_ha") || {}, hast = loadJ("wg_ha_status") || {};
+    L.push("");
+    L.push("[Home Assistant] " + (ha3.url ? ha3.url : "未设置") + " 令牌: " + (ha3.token ? "已设置" : "未设置"));
+    ["gas", "water"].forEach(function (src) {
+      var s = hast[src];
+      if (s) L.push("HA推送(" + src + "): " + ageStr(s.ts) + (s.skip ? " 跳过(" + s.skip + ")" : " 成功 " + (s.ok || 0) + " 失败 " + (s.fail || 0) + (s.http ? " HTTP " + s.http : "")));
+    });
     return L.join("\n");
   }
 
@@ -117,6 +126,11 @@
         if (rurl.indexOf("http") === 0) { rl2.url = rurl.replace(/\/+$/, ""); saved.push("中继地址"); }
         if (rsec.length >= 8) { rl2.secret = rsec; saved.push("中继密钥"); }
         if (rl2.url || rl2.secret) saveJ("wg_relay", rl2);
+        var hUrl = formField(body, "ha_url"), hTok = formField(body, "ha_token");
+        var ha2 = loadJ("wg_ha") || {};
+        if (hUrl.indexOf("http") === 0) { ha2.url = hUrl.replace(/\/+$/, ""); saved.push("HA地址"); }
+        if (hTok.length >= 20) { ha2.token = hTok; saved.push("HA令牌"); }
+        if (ha2.url || ha2.token) saveJ("wg_ha", ha2);
         if (saved.length) serveHtml(setupPage("已保存: " + saved.join("、") + "。可以运行一次 WG-Water-Cron 验证。"));
         else serveHtml(setupPage("没有可保存的内容(令牌太短或字段为空),请重试。"));
       } else serveHtml(setupPage(""));

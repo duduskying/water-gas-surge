@@ -14,6 +14,23 @@
     $notification.post(title, "", body);
   }
 
+
+  var K_HA = "wg_ha", K_HAST = "wg_ha_status";
+  function setHaStatus(src, obj) { var all = loadJ(K_HAST) || {}; all[src] = obj; saveJ(K_HAST, all); }
+  function haNum(v) { if (v === null || v === undefined || v === "") return null; var n = Number(v); return isNaN(n) ? null : n; }
+  function haPush(items, src, doneFn) {
+    var ha = loadJ(K_HA);
+    if (!ha || !ha.url || !ha.token) { setHaStatus(src, { ts: now(), skip: "no_ha" }); doneFn(); return; }
+    var base = String(ha.url).replace(/\/+$/, "");
+    var i = 0, okc = 0, failc = 0, lastHttp = 0;
+    (function next() {
+      if (i >= items.length) { setHaStatus(src, { ts: now(), ok: okc, fail: failc, http: lastHttp }); doneFn(); return; }
+      var it = items[i++];
+      if (it.state === null || it.state === undefined) { next(); return; }
+      $httpClient.post({ url: base + "/api/states/" + it.entity, headers: { "Authorization": "Bearer " + ha.token, "Content-Type": "application/json" }, body: JSON.stringify({ state: it.state, attributes: it.attrs }), timeout: 15 },
+        function (err, resp) { if (!err && resp && (resp.status === 200 || resp.status === 201)) okc++; else { failc++; lastHttp = resp ? resp.status : 0; } next(); });
+    })();
+  }
   var relay = loadJ(K_RELAY);
   var tokObj = loadJ(K_WTOKEN);
   setStatus({ lastRun: now(), build: "1.5" });
@@ -43,11 +60,18 @@
       var d = j.data || {}; d.ts = now();
       saveJ(K_WATER, d);
       setStatus({ stage: "done", lastOk: now(), lastError: "", stages: j.stages || {} });
+      var items = [
+        { entity: "sensor.water_balance", state: haNum(d.arrears_amount), attrs: { friendly_name: "自来水余额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
+        { entity: "sensor.water_month_usage", state: haNum(d.monthVolume), attrs: { friendly_name: "本月用水", unit_of_measurement: "m³", state_class: "total_increasing" } },
+        { entity: "sensor.water_month_bill", state: haNum(d.arreFee), attrs: { friendly_name: "本月水费待缴", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
+        { entity: "sensor.water_unbilled", state: haNum(d.unBillMoney), attrs: { friendly_name: "自来水未出账", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } }
+      ];
+      haPush(items, "water", function () { $done(); });
     } else {
       setStatus({ stage: j.stage || "failed", lastError: j.errorMsg || "", stages: j.stages || {} });
       if (j.stage === "userlist") notifyOnce("water_auth_fail", "自来水令牌可能已失效", "中继返回令牌无效。请在 Reqable 复制新的 ntAuth, 打开 example.com/wg-setup 重新填写。");
       if (j.stage === "auth") notifyOnce("water_relay_auth", "自来水中继密钥不匹配", "请打开 example.com/wg-setup 核对中继密钥。");
+      $done();
     }
-    $done();
   });
 })();

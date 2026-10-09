@@ -35,6 +35,23 @@
     return out;
   }
 
+
+  var K_HA = "wg_ha", K_HAST = "wg_ha_status";
+  function setHaStatus(src, obj) { var all = loadJ(K_HAST) || {}; all[src] = obj; saveJ(K_HAST, all); }
+  function haNum(v) { if (v === null || v === undefined || v === "") return null; var n = Number(v); return isNaN(n) ? null : n; }
+  function haPush(items, src, doneFn) {
+    var ha = loadJ(K_HA);
+    if (!ha || !ha.url || !ha.token) { setHaStatus(src, { ts: now(), skip: "no_ha" }); doneFn(); return; }
+    var base = String(ha.url).replace(/\/+$/, "");
+    var i = 0, okc = 0, failc = 0, lastHttp = 0;
+    (function next() {
+      if (i >= items.length) { setHaStatus(src, { ts: now(), ok: okc, fail: failc, http: lastHttp }); doneFn(); return; }
+      var it = items[i++];
+      if (it.state === null || it.state === undefined) { next(); return; }
+      $httpClient.post({ url: base + "/api/states/" + it.entity, headers: { "Authorization": "Bearer " + ha.token, "Content-Type": "application/json" }, body: JSON.stringify({ state: it.state, attributes: it.attrs }), timeout: 15 },
+        function (err, resp) { if (!err && resp && (resp.status === 200 || resp.status === 201)) okc++; else { failc++; lastHttp = resp ? resp.status : 0; } next(); });
+    })();
+  }
   var ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
   var keys = ["archive", "metergas", "sales", "sales_summary", "compare"].filter(function (k) { return tpl[k]; });
   if (!ck || !keys.length) {
@@ -50,7 +67,17 @@
       if (Object.keys(results).length) { gdata.ts = now(); gdata.src = "cron"; saveJ(K_GAS, gdata); }
       saveJ(K_GSTATUS, { lastRun: now(), okKeys: keys.length - failures, failures: failures, note: "" });
       if (failures === keys.length) notifyOnce("gas_expired", "燃气会话可能已过期", "今日自动采集全部失败, 请打开一次燃气小程序即可恢复。");
-      $done(); return;
+      if (Object.keys(results).length) {
+        var items = [
+          { entity: "sensor.gas_reading", state: haNum(gdata.reading), attrs: { friendly_name: "燃气表读数", unit_of_measurement: "m³", state_class: "measurement" } },
+          { entity: "sensor.gas_total_usage", state: haNum(gdata.totalgas), attrs: { friendly_name: "累计用气", unit_of_measurement: "m³", state_class: "total_increasing" } },
+          { entity: "sensor.gas_total_amount", state: haNum(gdata.totalamount), attrs: { friendly_name: "累计购气金额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
+          { entity: "sensor.gas_price", state: haNum(gdata.price), attrs: { friendly_name: "燃气单价", unit_of_measurement: "CNY/m³", state_class: "measurement" } },
+          { entity: "sensor.gas_last_purchase", state: haNum(gdata.last_money), attrs: { friendly_name: "最近一次购气", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement", purchase_time: gdata.last_time || "", gas_m3: haNum(gdata.last_gas) } }
+        ];
+        haPush(items, "gas", function () { $done(); });
+      } else $done();
+      return;
     }
     var key = keys[idx++], t = tpl[key];
     var headers = { "Content-Type": t.ctype || "application/x-www-form-urlencoded", "Cookie": ck.value, "Referer": t.referer || "", "User-Agent": t.ua || "" };
