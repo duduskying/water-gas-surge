@@ -77,6 +77,8 @@
       L.push("采集状态: 最近运行 " + ageStr(ws.lastRun) + " 阶段 " + (ws.stage || "?") + " 最近成功 " + ageStr(ws.lastOk));
       if (ws.refreshHttp !== undefined) L.push("刷新接口: HTTP " + ws.refreshHttp + " 业务码 " + (ws.refreshCode || "?") + " 返回新令牌 " + (ws.refreshHasToken ? "是" : "否") + (ws.refreshErr ? " 错误 " + ws.refreshErr : ""));
       if (ws.userHttp !== undefined) L.push("用户列表: HTTP " + ws.userHttp + " 业务码 " + (ws.userCode || "?") + (ws.userErr ? " 错误 " + ws.userErr : ""));
+      if (ws.refreshDiag) L.push("刷新诊断: " + ws.refreshDiag);
+      if (ws.userDiag) L.push("列表诊断: " + ws.userDiag);
       if (ws.lastError) L.push("错误: " + ws.lastError);
     }
     if (w) {
@@ -121,11 +123,17 @@
         target = WBASE + "/remote/revenue/select/meterReadListNew?mrMonth=" + (mm ? mm[1] : "");
       }
       if (!target) { $done({}); return; }
-      var nh = {};
-      var oh = $request.headers || {};
-      for (var hk in oh) { var lk = hk.toLowerCase(); if (lk !== "host" && lk !== "ntauth" && lk !== "content-length") nh[hk] = oh[hk]; }
-      nh["ntAuth"] = wtok.value;
-      nh["Content-Type"] = "application/json";
+      // 按小程序真实请求补全网关路由头(抓包实测): 缺 clientid 时对方网关直接 404
+      var nh = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13) UnifiedPCWindowsWechat(0xf2541d41) XWEB/25560",
+        "xweb_xhr": "1",
+        "clientid": "wpg_wx",
+        "ntAuth": wtok.value,
+        "Content-Type": $request.method === "POST" ? "application/json" : "application/x-www-form-urlencoded",
+        "Accept": "*/*",
+        "Referer": "https://servicewechat.com/wx67baba836a7b62bf/18/page-frame.html",
+        "Accept-Language": "zh-CN,zh;q=0.9"
+      };
       $done({ url: target, headers: nh });
       return;
     }

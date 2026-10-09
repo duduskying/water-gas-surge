@@ -23,10 +23,16 @@
     var fn = method === "POST" ? $httpClient.post : $httpClient.get;
     fn(opts, function (error, response, data) {
       var st = response && response.status;
-      if (error) { cb(null, String(error), st); return; }
+      if (error) { cb(null, String(error), st, ""); return; }
       var j = null;
       try { j = JSON.parse(data); } catch (e) {}
-      cb(j, j ? null : "响应非JSON(状态 " + st + ",长度 " + (data ? data.length : 0) + ")", st);
+      var diag = "";
+      if (!j) {
+        var rh = (response && response.headers) || {};
+        var srv = rh.Server || rh.server || "?";
+        diag = "srv=" + srv + " body=" + String(data || "").replace(/\s+/g, " ").slice(0, 140);
+      }
+      cb(j, j ? null : "响应非JSON(状态 " + st + ",长度 " + (data ? data.length : 0) + ")", st, diag);
     });
   }
   function setStatus(patch) {
@@ -44,17 +50,17 @@
   }
   var oldToken = tokObj.value;
   setStatus({ lastRun: now(), stage: "start", lastError: "" });
-  req("GET", GW + "/refresh", oldToken, null, function (rj, rerr, rst) {
+  req("GET", GW + "/refresh", oldToken, null, function (rj, rerr, rst, rdiag) {
     var candidate = oldToken, refreshed = false;
     if (ok(rj) && rj.resultData && rj.resultData.token) { candidate = rj.resultData.token; refreshed = candidate !== oldToken; }
-    setStatus({ stage: "refresh_done", refreshHttp: rst || 0, refreshCode: rj ? String(rj.errorCode) : "", refreshHasToken: !!(rj && rj.resultData && rj.resultData.token), refreshErr: rerr || "" });
+    setStatus({ stage: "refresh_done", refreshHttp: rst || 0, refreshCode: rj ? String(rj.errorCode) : "", refreshHasToken: !!(rj && rj.resultData && rj.resultData.token), refreshErr: rerr || "", refreshDiag: rdiag || "" });
     // 网关注入的是存储中的令牌: 先把新令牌落盘, 后续调用才真正用上它; 失败回滚旧令牌再重试
     if (candidate !== oldToken) saveJ(K_WTOKEN, { value: candidate, ts: tokObj.ts || now(), updated: now() });
     fetchAll(candidate, false);
     function fetchAll(token, isRetry) {
       setStatus({ stage: "userlist" });
-      req("GET", GW + "/userlist", token, null, function (uj, uerr, ust) {
-        setStatus({ stage: "userlist_done", userHttp: ust || 0, userCode: uj ? String(uj.errorCode) : "", userErr: uerr || "" });
+      req("GET", GW + "/userlist", token, null, function (uj, uerr, ust, udiag) {
+        setStatus({ stage: "userlist_done", userHttp: ust || 0, userCode: uj ? String(uj.errorCode) : "", userErr: uerr || "", userDiag: udiag || "" });
         if (!ok(uj)) {
           if (!isRetry && candidate !== oldToken) { saveJ(K_WTOKEN, { value: oldToken, ts: tokObj.ts || now(), updated: tokObj.updated || 0 }); fetchAll(oldToken, true); return; }
           setStatus({ stage: "failed", lastOk: 0, lastError: "用户列表失败: " + (uerr || (uj && uj.errorMsg) || "?") });

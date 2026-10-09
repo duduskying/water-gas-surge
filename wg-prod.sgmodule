@@ -1,7 +1,7 @@
 #!name=水电气正式版
 #!desc=燃气: 本地录制请求模板+每日重放采集(会话与模板只存手机本地)。自来水: 令牌一次粘贴(example.com/wg-setup)+每日自续期采集, 无在途拦截。核对报告: example.com/wg-report
 #!category=水电气
-#!version=1.2.0
+#!version=1.3.0
 
 [Script]
 WG-Gas-Core-Req = type=http-request, pattern=^https://(weixin\.catrq\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-core.js, requires-body=1, max-size=262144, timeout=10
