@@ -48,16 +48,27 @@
   function serveHtml(html) { $done({ response: { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" }, body: html } }); }
   function serveText(t) { $done({ response: { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" }, body: t } }); }
   function setupPage(msg) {
-    return "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>自来水令牌设置</title></head><body style='font-family:-apple-system;padding:20px'>" +
-      "<h3>自来水令牌设置</h3><p>把从 Reqable 里复制的 ntAuth 值粘贴到下面,提交后只保存在本机 Surge 存储中,不会上传。</p>" +
+    var wt = loadJ(K_WTOKEN), rl = loadJ("wg_relay") || {};
+    function st(ok) { return ok ? "已设置" : "未设置"; }
+    return "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>自来水采集设置</title></head><body style='font-family:-apple-system;padding:20px'>" +
+      "<h3>自来水采集设置</h3><p>以下三项只保存在本机 Surge 存储中,不会上传。已设置的项留空即保持不变。</p>" +
       (msg ? "<p style='color:#0a7d2c'>" + msg + "</p>" : "") +
-      "<form method='POST' action='https://example.com/wg-setup'><textarea name='token' rows='5' style='width:100%;font-size:13px' placeholder='粘贴 ntAuth 值'></textarea><br><br><button type='submit' style='font-size:17px;padding:8px 22px'>保存</button></form></body></html>";
+      "<form method='POST' action='https://example.com/wg-setup'>" +
+      "<p>1. ntAuth 令牌(" + st(!!(wt && wt.value)) + "):<br><textarea name='token' rows='4' style='width:100%;font-size:13px' placeholder='从 Reqable 复制的 ntAuth 值'></textarea></p>" +
+      "<p>2. 中继地址(" + st(!!rl.url) + "):<br><input name='relay_url' style='width:100%;font-size:14px' placeholder='http://192.168.x.x:18765' value='" + (rl.url || "") + "'></p>" +
+      "<p>3. 中继密钥(" + st(!!rl.secret) + "):<br><input name='relay_secret' style='width:100%;font-size:14px' placeholder='中继密钥'></p>" +
+      "<button type='submit' style='font-size:17px;padding:8px 22px'>保存</button></form></body></html>";
+  }
+  function formField(body, name) {
+    var m = new RegExp("(?:^|&)" + name + "=([^&]*)").exec(body || "");
+    if (!m) return "";
+    try { return decodeURIComponent(m[1].replace(/\+/g, " ")).replace(/^\s+|\s+$/g, ""); } catch (e) { return ""; }
   }
   function ageStr(ts) { if (!ts) return "无"; var s = now() - ts; if (s < 3600) return Math.floor(s / 60) + "分钟前"; if (s < 86400) return Math.floor(s / 3600) + "小时前"; return Math.floor(s / 86400) + "天前"; }
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 v1.4 ===");
+    L.push("=== 水电气正式版核对报告 v1.5 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
@@ -73,13 +84,11 @@
     var wt = loadJ(K_WTOKEN), w = loadJ(K_WATER), ws = loadJ(K_WSTATUS);
     L.push("");
     L.push("[自来水] 令牌: " + (wt ? "已设置(保存于 " + ageStr(wt.ts) + ",最近刷新 " + ageStr(wt.updated) + ")" : "未设置,请打开 example.com/wg-setup"));
+    var rl3 = loadJ("wg_relay") || {};
+    L.push("中继: " + (rl3.url ? "已设置 " + rl3.url : "未设置(请打开 example.com/wg-setup 补填中继地址与密钥)"));
     if (ws) {
       L.push("采集状态: 最近运行 " + ageStr(ws.lastRun) + " 阶段 " + (ws.stage || "?") + " 最近成功 " + ageStr(ws.lastOk) + " 构建 " + (ws.build || "旧版"));
-      if (ws.probeHttp !== undefined) L.push("探针(无令牌刷新接口): HTTP " + ws.probeHttp + " 业务码 " + (ws.probeCode || "?") + " 信息 " + (ws.probeMsg || "") + (ws.probeDiag ? " 诊断 " + ws.probeDiag : ""));
-      if (ws.refreshHttp !== undefined) L.push("刷新接口: HTTP " + ws.refreshHttp + " 业务码 " + (ws.refreshCode || "?") + " 返回新令牌 " + (ws.refreshHasToken ? "是" : "否") + (ws.refreshErr ? " 错误 " + ws.refreshErr : ""));
-      if (ws.userHttp !== undefined) L.push("用户列表: HTTP " + ws.userHttp + " 业务码 " + (ws.userCode || "?") + (ws.userErr ? " 错误 " + ws.userErr : ""));
-      if (ws.refreshDiag) L.push("刷新诊断: " + ws.refreshDiag);
-      if (ws.userDiag) L.push("列表诊断: " + ws.userDiag);
+      if (ws.stages) L.push("中继各步状态: " + JSON.stringify(ws.stages));
       if (ws.lastError) L.push("错误: " + ws.lastError);
     }
     if (w) {
@@ -99,46 +108,21 @@
     if (p.indexOf("/wg-setup") === 0) {
       if ($request.method === "POST") {
         var body = String($request.body || "");
-        var m = /(?:^|&)token=([^&]*)/.exec(body);
-        var token = "";
-        if (m) { try { token = decodeURIComponent(m[1].replace(/\+/g, " ")); } catch (e) { token = m[1]; } }
-        token = token.replace(/^\s+|\s+$/g, "");
-        if (token.length >= 20) { saveJ(K_WTOKEN, { value: token, ts: now(), updated: 0 }); serveHtml(setupPage("已保存(长度 " + token.length + ")。可以运行一次 WG-Water-Cron 手动采集验证。")); }
-        else serveHtml(setupPage("粘贴的内容太短,未保存,请重试。"));
+        var token = formField(body, "token");
+        var rurl = formField(body, "relay_url");
+        var rsec = formField(body, "relay_secret");
+        var saved = [];
+        if (token.length >= 20) { var prevT = loadJ(K_WTOKEN) || {}; saveJ(K_WTOKEN, { value: token, ts: now(), updated: prevT.updated || 0 }); saved.push("令牌"); }
+        var rl2 = loadJ("wg_relay") || {};
+        if (rurl.indexOf("http") === 0) { rl2.url = rurl.replace(/\/+$/, ""); saved.push("中继地址"); }
+        if (rsec.length >= 8) { rl2.secret = rsec; saved.push("中继密钥"); }
+        if (rl2.url || rl2.secret) saveJ("wg_relay", rl2);
+        if (saved.length) serveHtml(setupPage("已保存: " + saved.join("、") + "。可以运行一次 WG-Water-Cron 验证。"));
+        else serveHtml(setupPage("没有可保存的内容(令牌太短或字段为空),请重试。"));
       } else serveHtml(setupPage(""));
       return;
     }
     if (p.indexOf("/wg-report") === 0) { serveText(buildReport()); return; }
-    if (p.indexOf("/wgfetch/") === 0) {
-      // 网关绕行: 脚本引擎直连 xazls 会被其网关拒绝 TLS 握手, 改由 Surge 代理核心代发
-      var stage = p.slice("/wgfetch/".length);
-      var wtok = loadJ(K_WTOKEN);
-      if (stage !== "probe" && (!wtok || !wtok.value)) { serveText(JSON.stringify({ errorCode: "NO_TOKEN", errorMsg: "token not set" })); return; }
-      var WBASE = "https://www.xazls.com/wpg/main/client";
-      var target = null;
-      if (stage === "probe") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
-      else if (stage === "refresh") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
-      else if (stage === "userlist") target = WBASE + "/bind/selectWaterUserListWithNoBill";
-      else if (stage === "arrears") target = WBASE + "/bind/queryArrearsByClientNo";
-      else if (stage === "meterlist") {
-        var mm = /[?&]mrMonth=([0-9-]+)/.exec(url);
-        target = WBASE + "/remote/revenue/select/meterReadListNew?mrMonth=" + (mm ? mm[1] : "");
-      }
-      if (!target) { $done({}); return; }
-      // 按小程序真实请求补全网关路由头(抓包实测): 缺 clientid 时对方网关直接 404
-      var nh = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13) UnifiedPCWindowsWechat(0xf2541d41) XWEB/25560",
-        "xweb_xhr": "1",
-        "clientid": "wpg_wx",
-        "ntAuth": stage === "probe" ? "" : (wtok && wtok.value) || "",
-        "Content-Type": $request.method === "POST" ? "application/json" : "application/x-www-form-urlencoded",
-        "Accept": "*/*",
-        "Referer": "https://servicewechat.com/wx67baba836a7b62bf/18/page-frame.html",
-        "Accept-Language": "zh-CN,zh;q=0.9"
-      };
-      $done({ url: target, headers: nh });
-      return;
-    }
     $done({}); return;
   }
 
