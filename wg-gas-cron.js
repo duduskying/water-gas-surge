@@ -1,7 +1,7 @@
 // 水电气正式版 - 燃气定时重放采集
 // 用手机本地录制的请求模板 + 最新会话, 每天重放一次并解析; 无模板/会话失效时节流通知。
 (function () {
-  var K_COOKIE = "wg_gas_cookie", K_TPL = "wg_gas_tpl", K_GAS = "wg_gas_data", K_NOTIFY = "wg_notify";
+  var K_COOKIE = "wg_gas_cookie", K_TPL = "wg_gas_tpl", K_GAS = "wg_gas_data", K_NOTIFY = "wg_notify", K_GSTATUS = "wg_gas_status";
   function now() { return Math.floor(Date.now() / 1000); }
   function dayStr() { var d = new Date(Date.now() + 8 * 3600 * 1000); return d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1) + "-" + d.getUTCDate(); }
   function loadJ(k) { try { var s = $persistentStore.read(k); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
@@ -38,6 +38,7 @@
   var ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
   var keys = ["archive", "metergas", "sales", "sales_summary", "compare"].filter(function (k) { return tpl[k]; });
   if (!ck || !keys.length) {
+    saveJ(K_GSTATUS, { lastRun: now(), okKeys: 0, failures: 0, note: "no_tpl_or_cookie" });
     notifyOnce("gas_no_tpl", "燃气采集待初始化", "请打开一次燃气小程序并点进购气/用量页面, 之后将自动每日采集。");
     $done(); return;
   }
@@ -47,6 +48,7 @@
       var gdata = loadJ(K_GAS) || {};
       for (var f in results) gdata[f] = results[f];
       if (Object.keys(results).length) { gdata.ts = now(); gdata.src = "cron"; saveJ(K_GAS, gdata); }
+      saveJ(K_GSTATUS, { lastRun: now(), okKeys: keys.length - failures, failures: failures, note: "" });
       if (failures === keys.length) notifyOnce("gas_expired", "燃气会话可能已过期", "今日自动采集全部失败, 请打开一次燃气小程序即可恢复。");
       $done(); return;
     }

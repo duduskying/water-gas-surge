@@ -64,14 +64,21 @@
       L.push("数据时间: " + ageStr(g.ts) + " 来源: " + (g.src || "?"));
       if (g.reading !== undefined) L.push("表读数 f_jval: " + g.reading + "  气价: " + g.price);
       if (g.totalgas !== undefined) L.push("累计用气 totalgas: " + g.totalgas + "  sumgas: " + g.sumgas + "  累计金额 totalamount: " + g.totalamount);
-      if (g.surplus_gas !== undefined) L.push("剩余气量 surplus: " + g.surplus_gas + "  最近购气: " + g.last_time + " " + g.last_money + "元/" + g.last_gas + "方");
+      if (g.last_time) L.push("最近购气: " + g.last_time + " " + g.last_money + "元/" + g.last_gas + "方  剩余气量字段: " + (g.surplus_gas === null || g.surplus_gas === undefined ? "空(该公司未回填)" : g.surplus_gas));
       if (g.sales_count !== undefined) L.push("购气汇总: 共" + g.sales_count + "次, " + g.sales_total_money + "元/" + g.sales_total_gas + "方");
       if (g.compare_total !== undefined) L.push("用量分析合计: " + g.compare_total + " (点数 " + (g.compare_points || []).length + ")");
     } else L.push("暂无燃气数据。");
+    var gst = loadJ("wg_gas_status");
+    if (gst) L.push("定时采集: 最近运行 " + ageStr(gst.lastRun) + " 成功项 " + (gst.okKeys || 0) + " 失败 " + (gst.failures || 0) + (gst.note ? " (" + gst.note + ")" : ""));
     var wt = loadJ(K_WTOKEN), w = loadJ(K_WATER), ws = loadJ(K_WSTATUS);
     L.push("");
     L.push("[自来水] 令牌: " + (wt ? "已设置(保存于 " + ageStr(wt.ts) + ",最近刷新 " + ageStr(wt.updated) + ")" : "未设置,请打开 example.com/wg-setup"));
-    if (ws) L.push("最近采集: " + ageStr(ws.lastOk) + (ws.lastError ? "  错误: " + ws.lastError : ""));
+    if (ws) {
+      L.push("采集状态: 最近运行 " + ageStr(ws.lastRun) + " 阶段 " + (ws.stage || "?") + " 最近成功 " + ageStr(ws.lastOk));
+      if (ws.refreshHttp !== undefined) L.push("刷新接口: HTTP " + ws.refreshHttp + " 业务码 " + (ws.refreshCode || "?") + " 返回新令牌 " + (ws.refreshHasToken ? "是" : "否") + (ws.refreshErr ? " 错误 " + ws.refreshErr : ""));
+      if (ws.userHttp !== undefined) L.push("用户列表: HTTP " + ws.userHttp + " 业务码 " + (ws.userCode || "?") + (ws.userErr ? " 错误 " + ws.userErr : ""));
+      if (ws.lastError) L.push("错误: " + ws.lastError);
+    }
     if (w) {
       L.push("数据时间: " + ageStr(w.ts));
       L.push("用户列表 balanceFee: " + w.balanceFee + "  unBillMoney: " + w.unBillMoney + "  waterVolume: " + w.waterVolume_list + "  chargeAmount: " + w.chargeAmount_list);

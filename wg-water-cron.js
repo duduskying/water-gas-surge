@@ -21,11 +21,18 @@
     if (body !== null && body !== undefined) opts.body = body;
     var fn = method === "POST" ? $httpClient.post : $httpClient.get;
     fn(opts, function (error, response, data) {
-      if (error) { cb(null, String(error)); return; }
+      var st = response && response.status;
+      if (error) { cb(null, String(error), st); return; }
       var j = null;
       try { j = JSON.parse(data); } catch (e) {}
-      cb(j, j ? null : "响应非JSON(状态 " + (response && response.status) + ")");
+      cb(j, j ? null : "响应非JSON(状态 " + st + ",长度 " + (data ? data.length : 0) + ")", st);
     });
+  }
+  function setStatus(patch) {
+    var st = loadJ(K_WSTATUS) || {};
+    for (var k in patch) st[k] = patch[k];
+    st.ts = now();
+    saveJ(K_WSTATUS, st);
   }
   function ok(j) { return j && String(j.errorCode) === "200"; }
 
@@ -35,22 +42,26 @@
     $done(); return;
   }
   var oldToken = tokObj.value;
-  req("GET", BASE + "/wx/" + APP_SEG + "/refresh", oldToken, null, function (rj, rerr) {
+  setStatus({ lastRun: now(), stage: "start", lastError: "" });
+  req("GET", BASE + "/wx/" + APP_SEG + "/refresh", oldToken, null, function (rj, rerr, rst) {
     var candidate = oldToken, refreshed = false;
     if (ok(rj) && rj.resultData && rj.resultData.token) { candidate = rj.resultData.token; refreshed = candidate !== oldToken; }
+    setStatus({ stage: "refresh_done", refreshHttp: rst || 0, refreshCode: rj ? String(rj.errorCode) : "", refreshHasToken: !!(rj && rj.resultData && rj.resultData.token), refreshErr: rerr || "" });
     fetchAll(candidate, false);
     function fetchAll(token, isRetry) {
-      req("GET", BASE + "/bind/selectWaterUserListWithNoBill", token, null, function (uj, uerr) {
+      setStatus({ stage: "userlist" });
+      req("GET", BASE + "/bind/selectWaterUserListWithNoBill", token, null, function (uj, uerr, ust) {
+        setStatus({ stage: "userlist_done", userHttp: ust || 0, userCode: uj ? String(uj.errorCode) : "", userErr: uerr || "" });
         if (!ok(uj)) {
           if (!isRetry && candidate !== oldToken) { fetchAll(oldToken, true); return; }
-          saveJ(K_WSTATUS, { lastOk: 0, lastError: "用户列表失败: " + (uerr || (uj && uj.errorMsg) || "?"), ts: now() });
+          setStatus({ stage: "failed", lastOk: 0, lastError: "用户列表失败: " + (uerr || (uj && uj.errorMsg) || "?") });
           notifyOnce("water_auth_fail", "自来水令牌可能已失效", "自动采集失败。请在 Reqable 中复制新的 ntAuth, 打开 example.com/wg-setup 重新粘贴。");
           $done(); return;
         }
         if (refreshed && token === candidate) { tokObj.value = candidate; tokObj.updated = now(); saveJ(K_WTOKEN, tokObj); }
         var rows = uj.resultData || [];
         var row = Array.isArray(rows) ? rows[0] : null;
-        if (!row) { saveJ(K_WSTATUS, { lastOk: 0, lastError: "用户列表为空", ts: now() }); $done(); return; }
+        if (!row) { setStatus({ stage: "failed", lastOk: 0, lastError: "用户列表为空" }); $done(); return; }
         var clientCode = row.clientCode;
         if (clientCode) saveJ(K_WCLIENT, { code: clientCode });
         var data = { ts: now(), balanceFee: row.balanceFee, unBillMoney: row.unBillMoney, waterVolume_list: row.waterVolume, chargeAmount_list: row.chargeAmount };
@@ -62,7 +73,7 @@
               data.monthVolume = mrow.waterVolume; data.arreFee = mrow.arreFee; data.lateFee = mrow.lateFee; data.preStoreFee = mrow.preStoreFee; data.paid = mrow.paid;
             }
             saveJ(K_WATER, data);
-            saveJ(K_WSTATUS, { lastOk: now(), lastError: "", ts: now() });
+            setStatus({ stage: "done", lastOk: now(), lastError: "" });
             $done();
           });
         });
