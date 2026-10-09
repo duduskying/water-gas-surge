@@ -49,7 +49,9 @@
     $done(); return;
   }
   var oldToken = tokObj.value;
-  setStatus({ lastRun: now(), stage: "start", lastError: "" });
+  setStatus({ lastRun: now(), stage: "start", lastError: "", build: "1.4" });
+  req("GET", GW + "/probe", "", null, function (pj, perr, pst, pdiag) {
+    setStatus({ probeHttp: pst || 0, probeCode: pj ? String(pj.errorCode) : "", probeMsg: pj ? String(pj.errorMsg || "") : (perr || ""), probeDiag: pdiag || "" });
   req("GET", GW + "/refresh", oldToken, null, function (rj, rerr, rst, rdiag) {
     var candidate = oldToken, refreshed = false;
     if (ok(rj) && rj.resultData && rj.resultData.token) { candidate = rj.resultData.token; refreshed = candidate !== oldToken; }
@@ -88,5 +90,6 @@
         });
       });
     }
+  });
   });
 })();

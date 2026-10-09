@@ -57,7 +57,7 @@
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 ===");
+    L.push("=== 水电气正式版核对报告 v1.4 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
@@ -74,7 +74,8 @@
     L.push("");
     L.push("[自来水] 令牌: " + (wt ? "已设置(保存于 " + ageStr(wt.ts) + ",最近刷新 " + ageStr(wt.updated) + ")" : "未设置,请打开 example.com/wg-setup"));
     if (ws) {
-      L.push("采集状态: 最近运行 " + ageStr(ws.lastRun) + " 阶段 " + (ws.stage || "?") + " 最近成功 " + ageStr(ws.lastOk));
+      L.push("采集状态: 最近运行 " + ageStr(ws.lastRun) + " 阶段 " + (ws.stage || "?") + " 最近成功 " + ageStr(ws.lastOk) + " 构建 " + (ws.build || "旧版"));
+      if (ws.probeHttp !== undefined) L.push("探针(无令牌刷新接口): HTTP " + ws.probeHttp + " 业务码 " + (ws.probeCode || "?") + " 信息 " + (ws.probeMsg || "") + (ws.probeDiag ? " 诊断 " + ws.probeDiag : ""));
       if (ws.refreshHttp !== undefined) L.push("刷新接口: HTTP " + ws.refreshHttp + " 业务码 " + (ws.refreshCode || "?") + " 返回新令牌 " + (ws.refreshHasToken ? "是" : "否") + (ws.refreshErr ? " 错误 " + ws.refreshErr : ""));
       if (ws.userHttp !== undefined) L.push("用户列表: HTTP " + ws.userHttp + " 业务码 " + (ws.userCode || "?") + (ws.userErr ? " 错误 " + ws.userErr : ""));
       if (ws.refreshDiag) L.push("刷新诊断: " + ws.refreshDiag);
@@ -112,10 +113,11 @@
       // 网关绕行: 脚本引擎直连 xazls 会被其网关拒绝 TLS 握手, 改由 Surge 代理核心代发
       var stage = p.slice("/wgfetch/".length);
       var wtok = loadJ(K_WTOKEN);
-      if (!wtok || !wtok.value) { serveText(JSON.stringify({ errorCode: "NO_TOKEN", errorMsg: "token not set" })); return; }
+      if (stage !== "probe" && (!wtok || !wtok.value)) { serveText(JSON.stringify({ errorCode: "NO_TOKEN", errorMsg: "token not set" })); return; }
       var WBASE = "https://www.xazls.com/wpg/main/client";
       var target = null;
-      if (stage === "refresh") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
+      if (stage === "probe") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
+      else if (stage === "refresh") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
       else if (stage === "userlist") target = WBASE + "/bind/selectWaterUserListWithNoBill";
       else if (stage === "arrears") target = WBASE + "/bind/queryArrearsByClientNo";
       else if (stage === "meterlist") {
@@ -128,7 +130,7 @@
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13) UnifiedPCWindowsWechat(0xf2541d41) XWEB/25560",
         "xweb_xhr": "1",
         "clientid": "wpg_wx",
-        "ntAuth": wtok.value,
+        "ntAuth": stage === "probe" ? "" : (wtok && wtok.value) || "",
         "Content-Type": $request.method === "POST" ? "application/json" : "application/x-www-form-urlencoded",
         "Accept": "*/*",
         "Referer": "https://servicewechat.com/wx67baba836a7b62bf/18/page-frame.html",
