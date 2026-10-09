@@ -1,0 +1,15 @@
+#!name=水电气可见性测试
+#!desc=测试 Surge 能否看到燃气/自来水小程序的接口。只记录域名/路径/参数名/字段名, 不记录 Cookie 值/token 值/账号/数据值。测试完成后请停用本模块(全域 MITM 仅限测试窗口)。
+#!category=水电气测试
+#!version=1.0.0
+
+[Script]
+WG-Discover-Req = type=http-request, pattern=^https://.*, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover.js, requires-body=1, max-size=262144, timeout=10, debug=true
+WG-Discover-Res = type=http-response, pattern=^https://.*, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover.js, requires-body=1, max-size=524288, timeout=10, debug=true
+WG-Panel = type=panel, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-panel.js, style=info
+
+[Panel]
+WG-Status = script-name=WG-Panel, update-interval=30
+
+[MITM]
+hostname = %APPEND% *
