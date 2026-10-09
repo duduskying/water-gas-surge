@@ -2,7 +2,16 @@
 
 把微信小程序里的家庭天然气 / 自来水数据接入 Home Assistant / HomeKit 的 Surge 方案。
 
-当前阶段：**定向测试模块 v3**（混合方案的第二步）。
+当前阶段：**正式版 v1**（面板核对阶段，Home Assistant 上报在下一版）。
+
+## 正式版 v1
+
+- 模块地址：`https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-prod.sgmodule`
+- 安装前先停用全部测试模块（v1 / v2 / v3）。
+- 自来水初始化：Safari 打开 `https://example.com/wg-setup`，粘贴从 Reqable 复制的 ntAuth 值并保存（只存手机本地）。
+- 燃气初始化：打开一次燃气小程序，点进购气记录 / 用量页面。
+- 手动触发采集验证：Surge 脚本列表里运行 WG-Gas-Cron 与 WG-Water-Cron（或用 surge:///run-cron?name=WG-Water-Cron）。
+- 核对：Surge 面板「水电气」，或 Safari 打开 `https://example.com/wg-report`（报告不含任何凭据值）。
 
 ## 定向测试模块 v3
 
