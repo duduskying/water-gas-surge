@@ -51,7 +51,7 @@
     body: JSON.stringify({ token: tokObj.value }),
     timeout: 30
   }, function (error, response, data) {
-    if (error) { setStatus({ stage: "relay_unreachable", lastError: String(error) }); $done(); return; }
+    if (error) { setStatus({ stage: "relay_unreachable", lastError: String(error) }); notifyOnce("water_relay_down", "💧 自来水未更新", "今日未连上家中中继, 数据未更新。"); $done(); return; }
     var j = null;
     try { j = JSON.parse(data); } catch (e) {}
     if (!j) { setStatus({ stage: "relay_bad_response", lastError: "HTTP " + (response && response.status) }); $done(); return; }
@@ -60,6 +60,13 @@
       var d = j.data || {}; d.ts = now();
       saveJ(K_WATER, d);
       setStatus({ stage: "done", lastOk: now(), lastError: "", stages: j.stages || {} });
+      var wBal = haNum(d.arrears_amount);
+      var wParts = [];
+      if (wBal !== null) wParts.push("余额 " + wBal + " 元");
+      if (haNum(d.monthVolume) !== null) wParts.push("本月用水 " + d.monthVolume + " m³");
+      if (haNum(d.arreFee) !== null) wParts.push("本月待缴 " + d.arreFee + " 元");
+      if (wBal !== null && wBal < 20) $notification.post("⚠️ 自来水余额不足", "", "余额仅剩 " + wBal + " 元 · 本月用水 " + (d.monthVolume !== null && d.monthVolume !== undefined ? d.monthVolume : "?") + " m³, 请及时充值");
+      else $notification.post("💧 自来水日报", "", wParts.join(" · ") || "数据已更新");
       var items = [
         { entity: "sensor.water_balance", state: haNum(d.arrears_amount), attrs: { friendly_name: "自来水余额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
         { entity: "sensor.water_month_usage", state: haNum(d.monthVolume), attrs: { friendly_name: "本月用水", unit_of_measurement: "m³", state_class: "total_increasing" } },

@@ -87,6 +87,13 @@
       if (failures === keys.length) notifyOnce("gas_expired", "燃气会话可能已过期", "今日自动采集全部失败, 请打开一次燃气小程序即可恢复。");
       if (Object.keys(results).length) {
         var remaining = (haNum(gdata.totalgas) !== null && haNum(gdata.compare_total) !== null) ? Math.round((gdata.totalgas - gdata.compare_total) * 100) / 100 : null;
+        var gBal = haNum(gdata.balance);
+        var gParts = [];
+        if (remaining !== null) gParts.push("剩余 " + remaining + " 方");
+        if (gBal !== null) gParts.push("余额 " + gBal + " 元");
+        if (haNum(gdata.compare_total) !== null) gParts.push("累计用气 " + gdata.compare_total + " 方");
+        if (remaining !== null && remaining < 10) $notification.post("⚠️ 燃气剩余不足", "", "仅剩 " + remaining + " 方 · 余额 " + (gBal !== null ? gBal : "?") + " 元, 请及时购气");
+        else $notification.post("⛽ 燃气日报", "", gParts.join(" · ") || "数据已更新");
         var items = [
           { entity: "sensor.gas_balance", state: haNum(gdata.balance), attrs: { friendly_name: "燃气账户余额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
           { entity: "sensor.gas_total_purchased", state: haNum(gdata.totalgas), attrs: { friendly_name: "累计购气量", unit_of_measurement: "m³", state_class: "total_increasing" } },

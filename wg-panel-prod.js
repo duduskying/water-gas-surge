@@ -27,5 +27,5 @@
     L.push("更新: " + ageStr(w.ts) + " 令牌刷新: " + ageStr(wt && wt.updated));
   } else if (!wt) L.push("令牌未设置: 请打开 example.com/wg-setup");
   else L.push("已设置令牌,等待首次采集" + (ws && ws.lastError ? " (上次错误: " + ws.lastError + ")" : ""));
-  $done({ title: "水电气 v1.7", content: L.join("\n"), icon: "drop.fill", "icon-color": "#3A8FB7" });
+  $done({ title: "水电气 v1.8", content: L.join("\n"), icon: "drop.fill", "icon-color": "#3A8FB7" });
 })();
