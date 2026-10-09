@@ -8,9 +8,10 @@
   L.push("— 燃气 —");
   if (g) {
     var parts = [];
-    if (g.surplus_gas !== undefined && g.surplus_gas !== null) parts.push("剩余 " + g.surplus_gas + " 方");
-    if (g.reading !== undefined && g.reading !== null) parts.push("读数 " + g.reading);
-    if (g.totalgas !== undefined && g.totalgas !== null) parts.push("累计 " + g.totalgas + " 方");
+    if (g.balance !== undefined && g.balance !== null) parts.push("余额 " + g.balance + " 元");
+    if (g.totalgas !== undefined && g.totalgas !== null && g.compare_total !== undefined) parts.push("剩余 " + (Math.round((g.totalgas - g.compare_total) * 100) / 100) + " 方");
+    else if (g.surplus_gas !== undefined && g.surplus_gas !== null) parts.push("剩余 " + g.surplus_gas + " 方");
+    if (g.totalgas !== undefined && g.totalgas !== null) parts.push("累计购气 " + g.totalgas + " 方");
     L.push(parts.length ? parts.join(" · ") : "已捕获,字段待核对");
     if (g.last_time) L.push("最近购气: " + g.last_time + " " + g.last_money + "元");
     L.push("更新: " + ageStr(g.ts) + "(" + (g.src || "?") + ") 会话: " + ageStr(ck && ck.ts));
@@ -26,5 +27,5 @@
     L.push("更新: " + ageStr(w.ts) + " 令牌刷新: " + ageStr(wt && wt.updated));
   } else if (!wt) L.push("令牌未设置: 请打开 example.com/wg-setup");
   else L.push("已设置令牌,等待首次采集" + (ws && ws.lastError ? " (上次错误: " + ws.lastError + ")" : ""));
-  $done({ title: "水电气 v1.6", content: L.join("\n"), icon: "drop.fill", "icon-color": "#3A8FB7" });
+  $done({ title: "水电气 v1.7", content: L.join("\n"), icon: "drop.fill", "icon-color": "#3A8FB7" });
 })();

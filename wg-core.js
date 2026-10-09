@@ -30,7 +30,7 @@
     var first = Array.isArray(o) ? o[0] : o;
     if (!first || typeof first !== "object") return null;
     var out = {};
-    if (key === "archive") { out.reading = num(first.f_jval); out.price = num(first.price); out.meterBase = num(first.f_tablebase); }
+    if (key === "archive") { out.balance = num(first.f_jval); out.price = num(first.price); out.meterBase = num(first.f_tablebase); }
     else if (key === "metergas") { out.totalgas = num(first.totalgas); out.sumgas = num(first.sumgas); out.totalamount = num(first.totalamount); out.sumamount = num(first.sumamount); out.returngas = num(first.returngas); }
     else if (key === "sales") {
       if (!Array.isArray(o) || !o.length) return null;
@@ -70,16 +70,17 @@
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 v1.6 ===");
+    L.push("=== 水电气正式版核对报告 v1.7 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
       L.push("数据时间: " + ageStr(g.ts) + " 来源: " + (g.src || "?"));
-      if (g.reading !== undefined) L.push("表读数 f_jval: " + g.reading + "  气价: " + g.price);
-      if (g.totalgas !== undefined) L.push("累计用气 totalgas: " + g.totalgas + "  sumgas: " + g.sumgas + "  累计金额 totalamount: " + g.totalamount);
+      if (g.balance !== undefined) L.push("账户余额: " + g.balance + " 元  气价: " + g.price);
+      if (g.totalgas !== undefined) L.push("累计购气: " + g.totalgas + " 方  累计金额: " + g.totalamount + " 元");
+      if (g.compare_total !== undefined && g.totalgas !== undefined) L.push("累计用气: " + g.compare_total + " 方  剩余气量(计算): " + (Math.round((g.totalgas - g.compare_total) * 100) / 100) + " 方");
       if (g.last_time) L.push("最近购气: " + g.last_time + " " + g.last_money + "元/" + g.last_gas + "方  剩余气量字段: " + (g.surplus_gas === null || g.surplus_gas === undefined ? "空(该公司未回填)" : g.surplus_gas));
       if (g.sales_count !== undefined) L.push("购气汇总: 共" + g.sales_count + "次, " + g.sales_total_money + "元/" + g.sales_total_gas + "方");
-      if (g.compare_total !== undefined) L.push("用量分析合计: " + g.compare_total + " (点数 " + (g.compare_points || []).length + ")");
+      if (g.compare_total !== undefined && g.totalgas === undefined) L.push("累计用气: " + g.compare_total + " 方");
     } else L.push("暂无燃气数据。");
     var gst = loadJ("wg_gas_status");
     if (gst) L.push("定时采集: 最近运行 " + ageStr(gst.lastRun) + " 成功项 " + (gst.okKeys || 0) + " 失败 " + (gst.failures || 0) + (gst.note ? " (" + gst.note + ")" : ""));

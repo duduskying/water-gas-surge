@@ -19,7 +19,7 @@
     var first = Array.isArray(o) ? o[0] : o;
     if (!first || typeof first !== "object") return null;
     var out = {};
-    if (key === "archive") { out.reading = num(first.f_jval); out.price = num(first.price); out.meterBase = num(first.f_tablebase); }
+    if (key === "archive") { out.balance = num(first.f_jval); out.price = num(first.price); out.meterBase = num(first.f_tablebase); }
     else if (key === "metergas") { out.totalgas = num(first.totalgas); out.sumgas = num(first.sumgas); out.totalamount = num(first.totalamount); out.sumamount = num(first.sumamount); out.returngas = num(first.returngas); }
     else if (key === "sales") {
       if (!Array.isArray(o) || !o.length) return null;
@@ -52,6 +52,24 @@
         function (err, resp) { if (!err && resp && (resp.status === 200 || resp.status === 201)) okc++; else { failc++; lastHttp = resp ? resp.status : 0; } next(); });
     })();
   }
+
+  function widenCompareBody(body) {
+    try {
+      var m = /(^|&)data=([^&]*)/.exec(body || "");
+      if (!m) return body;
+      var outer = JSON.parse(decodeURIComponent(m[2]));
+      var holder = (outer && typeof outer.param === "object" && outer.param) || outer;
+      var re = /^\d{4}-\d{2}-\d{2}$/;
+      if (holder && re.test(holder.startDate || "") && re.test(holder.endDate || "")) {
+        var d = new Date(Date.now() + 8 * 3600 * 1000);
+        var mm = ("0" + (d.getUTCMonth() + 1)).slice(-2), dd = ("0" + d.getUTCDate()).slice(-2);
+        holder.startDate = "2020-01-01";
+        holder.endDate = d.getUTCFullYear() + "-" + mm + "-" + dd;
+        return body.replace(m[0], m[1] + "data=" + encodeURIComponent(JSON.stringify(outer)));
+      }
+    } catch (e) {}
+    return body;
+  }
   var ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
   var keys = ["archive", "metergas", "sales", "sales_summary", "compare"].filter(function (k) { return tpl[k]; });
   if (!ck || !keys.length) {
@@ -68,9 +86,12 @@
       saveJ(K_GSTATUS, { lastRun: now(), okKeys: keys.length - failures, failures: failures, note: "" });
       if (failures === keys.length) notifyOnce("gas_expired", "燃气会话可能已过期", "今日自动采集全部失败, 请打开一次燃气小程序即可恢复。");
       if (Object.keys(results).length) {
+        var remaining = (haNum(gdata.totalgas) !== null && haNum(gdata.compare_total) !== null) ? Math.round((gdata.totalgas - gdata.compare_total) * 100) / 100 : null;
         var items = [
-          { entity: "sensor.gas_reading", state: haNum(gdata.reading), attrs: { friendly_name: "燃气表读数", unit_of_measurement: "m³", state_class: "measurement" } },
-          { entity: "sensor.gas_total_usage", state: haNum(gdata.totalgas), attrs: { friendly_name: "累计用气", unit_of_measurement: "m³", state_class: "total_increasing" } },
+          { entity: "sensor.gas_balance", state: haNum(gdata.balance), attrs: { friendly_name: "燃气账户余额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
+          { entity: "sensor.gas_total_purchased", state: haNum(gdata.totalgas), attrs: { friendly_name: "累计购气量", unit_of_measurement: "m³", state_class: "total_increasing" } },
+          { entity: "sensor.gas_total_used", state: haNum(gdata.compare_total), attrs: { friendly_name: "累计用气量", unit_of_measurement: "m³", state_class: "total_increasing" } },
+          { entity: "sensor.gas_remaining", state: remaining, attrs: { friendly_name: "剩余气量", unit_of_measurement: "m³", state_class: "measurement" } },
           { entity: "sensor.gas_total_amount", state: haNum(gdata.totalamount), attrs: { friendly_name: "累计购气金额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
           { entity: "sensor.gas_price", state: haNum(gdata.price), attrs: { friendly_name: "燃气单价", unit_of_measurement: "CNY/m³", state_class: "measurement" } },
           { entity: "sensor.gas_last_purchase", state: haNum(gdata.last_money), attrs: { friendly_name: "最近一次购气", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement", purchase_time: gdata.last_time || "", gas_m3: haNum(gdata.last_gas) } }
@@ -81,7 +102,7 @@
     }
     var key = keys[idx++], t = tpl[key];
     var headers = { "Content-Type": t.ctype || "application/x-www-form-urlencoded", "Cookie": ck.value, "Referer": t.referer || "", "User-Agent": t.ua || "" };
-    $httpClient.post({ url: t.url, headers: headers, body: t.body }, function (error, response, data) {
+    $httpClient.post({ url: t.url, headers: headers, body: key === "compare" ? widenCompareBody(t.body) : t.body }, function (error, response, data) {
       if (!error && data) {
         var parsed = parseGasBody(key, data);
         if (parsed) { for (var f2 in parsed) results[f2] = parsed[f2]; }
