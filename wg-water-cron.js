@@ -3,6 +3,7 @@
 // 不做在途拦截, 不影响小程序日常使用。
 (function () {
   var BASE = "https://www.xazls.com/wpg/main/client";
+  var GW = "https://example.com/wgfetch"; // 经核心脚本改写, 由 Surge 代理核心代发(脚本引擎直连会被对方网关拒绝握手)
   var APP_SEG = "wx67baba836a7b62bf";
   var K_WTOKEN = "wg_water_token", K_WATER = "wg_water_data", K_WSTATUS = "wg_water_status", K_WCLIENT = "wg_water_client", K_NOTIFY = "wg_notify";
   function now() { return Math.floor(Date.now() / 1000); }
@@ -43,17 +44,19 @@
   }
   var oldToken = tokObj.value;
   setStatus({ lastRun: now(), stage: "start", lastError: "" });
-  req("GET", BASE + "/wx/" + APP_SEG + "/refresh", oldToken, null, function (rj, rerr, rst) {
+  req("GET", GW + "/refresh", oldToken, null, function (rj, rerr, rst) {
     var candidate = oldToken, refreshed = false;
     if (ok(rj) && rj.resultData && rj.resultData.token) { candidate = rj.resultData.token; refreshed = candidate !== oldToken; }
     setStatus({ stage: "refresh_done", refreshHttp: rst || 0, refreshCode: rj ? String(rj.errorCode) : "", refreshHasToken: !!(rj && rj.resultData && rj.resultData.token), refreshErr: rerr || "" });
+    // 网关注入的是存储中的令牌: 先把新令牌落盘, 后续调用才真正用上它; 失败回滚旧令牌再重试
+    if (candidate !== oldToken) saveJ(K_WTOKEN, { value: candidate, ts: tokObj.ts || now(), updated: now() });
     fetchAll(candidate, false);
     function fetchAll(token, isRetry) {
       setStatus({ stage: "userlist" });
-      req("GET", BASE + "/bind/selectWaterUserListWithNoBill", token, null, function (uj, uerr, ust) {
+      req("GET", GW + "/userlist", token, null, function (uj, uerr, ust) {
         setStatus({ stage: "userlist_done", userHttp: ust || 0, userCode: uj ? String(uj.errorCode) : "", userErr: uerr || "" });
         if (!ok(uj)) {
-          if (!isRetry && candidate !== oldToken) { fetchAll(oldToken, true); return; }
+          if (!isRetry && candidate !== oldToken) { saveJ(K_WTOKEN, { value: oldToken, ts: tokObj.ts || now(), updated: tokObj.updated || 0 }); fetchAll(oldToken, true); return; }
           setStatus({ stage: "failed", lastOk: 0, lastError: "用户列表失败: " + (uerr || (uj && uj.errorMsg) || "?") });
           notifyOnce("water_auth_fail", "自来水令牌可能已失效", "自动采集失败。请在 Reqable 中复制新的 ntAuth, 打开 example.com/wg-setup 重新粘贴。");
           $done(); return;
@@ -65,9 +68,9 @@
         var clientCode = row.clientCode;
         if (clientCode) saveJ(K_WCLIENT, { code: clientCode });
         var data = { ts: now(), balanceFee: row.balanceFee, unBillMoney: row.unBillMoney, waterVolume_list: row.waterVolume, chargeAmount_list: row.chargeAmount };
-        req("POST", BASE + "/bind/queryArrearsByClientNo", token, JSON.stringify([clientCode]), function (aj) {
+        req("POST", GW + "/arrears", token, JSON.stringify([clientCode]), function (aj) {
           if (ok(aj) && Array.isArray(aj.resultData) && aj.resultData[0]) data.arrears_amount = aj.resultData[0].chargeAmount;
-          req("GET", BASE + "/remote/revenue/select/meterReadListNew?mrMonth=" + yyyymm(), token, null, function (mj) {
+          req("GET", GW + "/meterlist?mrMonth=" + yyyymm(), token, null, function (mj) {
             if (ok(mj) && Array.isArray(mj.resultData) && mj.resultData[0]) {
               var mrow = mj.resultData[0];
               data.monthVolume = mrow.waterVolume; data.arreFee = mrow.arreFee; data.lateFee = mrow.lateFee; data.preStoreFee = mrow.preStoreFee; data.paid = mrow.paid;

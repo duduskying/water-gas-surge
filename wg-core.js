@@ -106,6 +106,29 @@
       return;
     }
     if (p.indexOf("/wg-report") === 0) { serveText(buildReport()); return; }
+    if (p.indexOf("/wgfetch/") === 0) {
+      // 网关绕行: 脚本引擎直连 xazls 会被其网关拒绝 TLS 握手, 改由 Surge 代理核心代发
+      var stage = p.slice("/wgfetch/".length);
+      var wtok = loadJ(K_WTOKEN);
+      if (!wtok || !wtok.value) { serveText(JSON.stringify({ errorCode: "NO_TOKEN", errorMsg: "token not set" })); return; }
+      var WBASE = "https://www.xazls.com/wpg/main/client";
+      var target = null;
+      if (stage === "refresh") target = WBASE + "/wx/wx67baba836a7b62bf/refresh";
+      else if (stage === "userlist") target = WBASE + "/bind/selectWaterUserListWithNoBill";
+      else if (stage === "arrears") target = WBASE + "/bind/queryArrearsByClientNo";
+      else if (stage === "meterlist") {
+        var mm = /[?&]mrMonth=([0-9-]+)/.exec(url);
+        target = WBASE + "/remote/revenue/select/meterReadListNew?mrMonth=" + (mm ? mm[1] : "");
+      }
+      if (!target) { $done({}); return; }
+      var nh = {};
+      var oh = $request.headers || {};
+      for (var hk in oh) { var lk = hk.toLowerCase(); if (lk !== "host" && lk !== "ntauth" && lk !== "content-length") nh[hk] = oh[hk]; }
+      nh["ntAuth"] = wtok.value;
+      nh["Content-Type"] = "application/json";
+      $done({ url: target, headers: nh });
+      return;
+    }
     $done({}); return;
   }
 
