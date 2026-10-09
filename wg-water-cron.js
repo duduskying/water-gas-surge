@@ -71,7 +71,8 @@
         { entity: "sensor.water_balance", state: haNum(d.arrears_amount), attrs: { friendly_name: "自来水余额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
         { entity: "sensor.water_month_usage", state: haNum(d.monthVolume), attrs: { friendly_name: "本月用水", unit_of_measurement: "m³", state_class: "total_increasing" } },
         { entity: "sensor.water_month_bill", state: haNum(d.arreFee), attrs: { friendly_name: "本月水费待缴", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
-        { entity: "sensor.water_unbilled", state: haNum(d.unBillMoney), attrs: { friendly_name: "自来水未出账", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } }
+        { entity: "sensor.water_unbilled", state: haNum(d.unBillMoney), attrs: { friendly_name: "自来水未出账", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
+        { entity: "binary_sensor.water_low", state: wBal === null ? null : (wBal < 20 ? "on" : "off"), attrs: { friendly_name: "自来水余额不足", device_class: "moisture" } }
       ];
       haPush(items, "water", function () { $done(); });
     } else {

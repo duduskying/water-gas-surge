@@ -101,7 +101,8 @@
           { entity: "sensor.gas_remaining", state: remaining, attrs: { friendly_name: "剩余气量", unit_of_measurement: "m³", state_class: "measurement" } },
           { entity: "sensor.gas_total_amount", state: haNum(gdata.totalamount), attrs: { friendly_name: "累计购气金额", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement" } },
           { entity: "sensor.gas_price", state: haNum(gdata.price), attrs: { friendly_name: "燃气单价", unit_of_measurement: "CNY/m³", state_class: "measurement" } },
-          { entity: "sensor.gas_last_purchase", state: haNum(gdata.last_money), attrs: { friendly_name: "最近一次购气", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement", purchase_time: gdata.last_time || "", gas_m3: haNum(gdata.last_gas) } }
+          { entity: "sensor.gas_last_purchase", state: haNum(gdata.last_money), attrs: { friendly_name: "最近一次购气", unit_of_measurement: "CNY", device_class: "monetary", state_class: "measurement", purchase_time: gdata.last_time || "", gas_m3: haNum(gdata.last_gas) } },
+          { entity: "binary_sensor.gas_low", state: remaining === null ? null : (remaining < 10 ? "on" : "off"), attrs: { friendly_name: "燃气不足", device_class: "moisture" } }
         ];
         haPush(items, "gas", function () { $done(); });
       } else $done();

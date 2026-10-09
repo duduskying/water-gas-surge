@@ -1,14 +1,14 @@
 #!name=水电气正式版
 #!desc=燃气: 本地录制请求模板+每日重放采集(会话与模板只存手机本地)。自来水: 令牌一次粘贴(example.com/wg-setup)+每日自续期采集, 无在途拦截。核对报告: example.com/wg-report
 #!category=水电气
-#!version=1.8.0
+#!version=1.9.0
 
 [Script]
-WG-Gas-Core-Req = type=http-request, pattern=^https://(weixin\.catrq\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-core.js?v=180, requires-body=1, max-size=262144, timeout=10
-WG-Gas-Core-Res = type=http-response, pattern=^https://weixin\.catrq\.com/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-core.js?v=180, requires-body=1, max-size=2097152, timeout=10
-WG-Gas-Cron = type=cron, cronexp="0 10 * * *", script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-gas-cron.js?v=180, timeout=60
-WG-Water-Cron = type=cron, cronexp="10 10 * * *", script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-water-cron.js?v=180, timeout=60
-WG-Panel-Prod = type=panel, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-panel-prod.js?v=180, style=info
+WG-Gas-Core-Req = type=http-request, pattern=^https://(weixin\.catrq\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-core.js?v=190, requires-body=1, max-size=262144, timeout=10
+WG-Gas-Core-Res = type=http-response, pattern=^https://weixin\.catrq\.com/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-core.js?v=190, requires-body=1, max-size=2097152, timeout=10
+WG-Gas-Cron = type=cron, cronexp="0 10 * * *", script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-gas-cron.js?v=190, timeout=60
+WG-Water-Cron = type=cron, cronexp="10 10 * * *", script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-water-cron.js?v=190, timeout=60
+WG-Panel-Prod = type=panel, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-panel-prod.js?v=190, style=info
 
 [Panel]
 WG-Prod-Status = script-name=WG-Panel-Prod, update-interval=60
