@@ -1,0 +1,15 @@
+#!name=水电气定向测试v3
+#!desc=v3: 自来水只挂请求侧(排查响应脚本影响), 燃气双侧并解析data字段。只记录路径/参数名/判别值/字段名, 不记任何值型凭据与户号。测完请停用。
+#!category=水电气测试
+#!version=3.0.0
+
+[Script]
+WG3-Discover-Req = type=http-request, pattern=^https://(weixin\.catrq\.com|www\.xazls\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover3.js, requires-body=1, max-size=262144, timeout=10, debug=true
+WG3-Discover-Res = type=http-response, pattern=^https://(weixin\.catrq\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover3.js, requires-body=1, max-size=2097152, timeout=10, debug=true
+WG3-Panel = type=panel, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-panel3.js, style=info
+
+[Panel]
+WG3-Status = script-name=WG3-Panel, update-interval=30
+
+[MITM]
+hostname = %APPEND% weixin.catrq.com, *.catrq.com, www.xazls.com, *.xazls.com, example.com
