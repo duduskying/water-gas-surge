@@ -2,7 +2,14 @@
 
 把微信小程序里的家庭天然气 / 自来水数据接入 Home Assistant / HomeKit 的 Surge 方案。
 
-当前阶段：**可见性测试模块**（混合方案的第一步）。
+当前阶段：**定向测试模块 v2**（混合方案的第二步；v1 全域发现已完成使命）。
+
+## 定向测试模块 v2
+
+- 模块地址：`https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-test2.sgmodule`
+- 只盯两个已定位的域名：燃气 `weixin.catrq.com`、自来水 `www.xazls.com`。
+- 分开测试：先打开 `https://example.com/wg-reset` 清空，只操作一个小程序的各页面，再打开 `https://example.com/wg-report` 回传报告；另一个小程序重复一遍。
+- v2 新增：请求序号与时间、白名单判别参数值（如 type / typeCode / flag，不含任何 ID 与密钥）、响应捕获加固与异常落盘。
 
 ## 测试模块
 

@@ -1,0 +1,15 @@
+#!name=水电气定向测试v2
+#!desc=只盯燃气 weixin.catrq.com 与自来水 www.xazls.com 两个域名。记录序号/路径/参数名/判别值/字段名, 不记录 Cookie 值/token 值/户号/数据值。测试完成后请停用。
+#!category=水电气测试
+#!version=2.0.0
+
+[Script]
+WG2-Discover-Req = type=http-request, pattern=^https://(weixin\.catrq\.com|www\.xazls\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover2.js, requires-body=1, max-size=262144, timeout=10, debug=true
+WG2-Discover-Res = type=http-response, pattern=^https://(weixin\.catrq\.com|www\.xazls\.com|example\.com)/, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-discover2.js, requires-body=1, max-size=2097152, timeout=10, debug=true
+WG2-Panel = type=panel, script-path=https://raw.githubusercontent.com/duduskying/water-gas-surge/main/wg-panel2.js, style=info
+
+[Panel]
+WG2-Status = script-name=WG2-Panel, update-interval=30
+
+[MITM]
+hostname = %APPEND% weixin.catrq.com, *.catrq.com, www.xazls.com, *.xazls.com, example.com
