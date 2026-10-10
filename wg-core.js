@@ -72,7 +72,7 @@
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 v1.10 ===");
+    L.push("=== 水电气正式版核对报告 v1.11 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
@@ -88,7 +88,7 @@
     if (gst) L.push("定时采集: 最近运行 " + ageStr(gst.lastRun) + " 成功项 " + (gst.okKeys || 0) + " 失败 " + (gst.failures || 0) + (gst.note ? " (" + gst.note + ")" : ""));
     var pb = loadJ("wg_probe");
     if (pb) {
-      L.push("保活探针: " + (pb.state === "alive" ? "存活" : pb.state === "dead" ? "已失效" : (pb.state || "待命")) + " 已检查 " + (pb.checks || 0) + " 次 最近成功 " + ageStr(pb.lastOk) + (pb.netErr ? " 网络失败 " + pb.netErr + " 次" : ""));
+      L.push("保活探针: " + (pb.state === "alive" ? "存活" : pb.state === "dead" ? "已失效" : (pb.state || "待命")) + " 已检查 " + (pb.checks || 0) + " 次 最近成功 " + ageStr(pb.lastOk) + (pb.netErr ? " 网络失败 " + pb.netErr + " 次" : "") + (pb.repushTs ? " 刷新HA " + ageStr(pb.repushTs) : ""));
       if (pb.bornAt) L.push("当前会话: 捕获于 " + clockStr(pb.bornAt) + " 已存活 " + hoursStr(now() - pb.bornAt) + " 小时");
       if (pb.deadAt) L.push("失效时刻: " + clockStr(pb.deadAt) + " 本会话存活了 " + (pb.lastLifeH !== null && pb.lastLifeH !== undefined ? pb.lastLifeH : "?") + " 小时");
       else if (pb.lastDeadAt) L.push("上一会话: 失效于 " + clockStr(pb.lastDeadAt) + " 存活了 " + (pb.lastLifeH !== null && pb.lastLifeH !== undefined ? pb.lastLifeH : "?") + " 小时");
