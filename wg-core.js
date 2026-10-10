@@ -66,11 +66,13 @@
     if (!m) return "";
     try { return decodeURIComponent(m[1].replace(/\+/g, " ")).replace(/^\s+|\s+$/g, ""); } catch (e) { return ""; }
   }
+  function clockStr(ts) { if (!ts) return "?"; var d = new Date(ts * 1000 + 8 * 3600 * 1000); return ("0" + d.getUTCHours()).slice(-2) + ":" + ("0" + d.getUTCMinutes()).slice(-2); }
+  function hoursStr(sec) { if (sec === null || sec === undefined) return "?"; return Math.round(sec / 360) / 10 + ""; }
   function ageStr(ts) { if (!ts) return "无"; var s = now() - ts; if (s < 3600) return Math.floor(s / 60) + "分钟前"; if (s < 86400) return Math.floor(s / 3600) + "小时前"; return Math.floor(s / 86400) + "天前"; }
   function buildReport() {
     var L = [];
     var g = loadJ(K_GAS), ck = loadJ(K_COOKIE), tpl = loadJ(K_TPL) || {};
-    L.push("=== 水电气正式版核对报告 v1.9 ===");
+    L.push("=== 水电气正式版核对报告 v1.10 ===");
     L.push("[燃气] 会话: " + (ck ? "已捕获(" + ageStr(ck.ts) + ")" : "未捕获,请打开一次燃气小程序"));
     L.push("已录制模板: " + (Object.keys(tpl).join(", ") || "无"));
     if (g) {
@@ -84,6 +86,13 @@
     } else L.push("暂无燃气数据。");
     var gst = loadJ("wg_gas_status");
     if (gst) L.push("定时采集: 最近运行 " + ageStr(gst.lastRun) + " 成功项 " + (gst.okKeys || 0) + " 失败 " + (gst.failures || 0) + (gst.note ? " (" + gst.note + ")" : ""));
+    var pb = loadJ("wg_probe");
+    if (pb) {
+      L.push("保活探针: " + (pb.state === "alive" ? "存活" : pb.state === "dead" ? "已失效" : (pb.state || "待命")) + " 已检查 " + (pb.checks || 0) + " 次 最近成功 " + ageStr(pb.lastOk) + (pb.netErr ? " 网络失败 " + pb.netErr + " 次" : ""));
+      if (pb.bornAt) L.push("当前会话: 捕获于 " + clockStr(pb.bornAt) + " 已存活 " + hoursStr(now() - pb.bornAt) + " 小时");
+      if (pb.deadAt) L.push("失效时刻: " + clockStr(pb.deadAt) + " 本会话存活了 " + (pb.lastLifeH !== null && pb.lastLifeH !== undefined ? pb.lastLifeH : "?") + " 小时");
+      else if (pb.lastDeadAt) L.push("上一会话: 失效于 " + clockStr(pb.lastDeadAt) + " 存活了 " + (pb.lastLifeH !== null && pb.lastLifeH !== undefined ? pb.lastLifeH : "?") + " 小时");
+    }
     var wt = loadJ(K_WTOKEN), w = loadJ(K_WATER), ws = loadJ(K_WSTATUS);
     L.push("");
     L.push("[自来水] 令牌: " + (wt ? "已设置(保存于 " + ageStr(wt.ts) + ",最近刷新 " + ageStr(wt.updated) + ")" : "未设置,请打开 example.com/wg-setup"));
